@@ -3,11 +3,12 @@ package views
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+
 	"github.com/madalinpopa/go-bookreview/internal/app"
 	"github.com/madalinpopa/go-bookreview/internal/forms"
 	"github.com/madalinpopa/go-bookreview/internal/models"
-	"net/http"
-	"strconv"
 )
 
 // BooksPage handles HTTP requests to display a paginated list of books using the given app's data and templates.
@@ -57,6 +58,19 @@ func BooksAddPage(app *app.App) http.HandlerFunc {
 	}
 }
 
+func BooksImportPage(app *app.App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var form forms.BookForm // TODO: other form
+		data := app.GetTemplateData(r)
+		data.Form = form
+		if app.IsHtmxRequest(r) {
+			app.Render(w, r, "htmxImportBook", data, http.StatusOK)
+			return
+		}
+		app.Render(w, r, "books_import.tmpl", data, http.StatusOK)
+	}
+}
+
 // BooksDetailPage handles requests for the book detail page
 // by retrieving a book record and rendering the appropriate template.
 func BooksDetailPage(app *app.App) http.HandlerFunc {
@@ -80,13 +94,11 @@ func BooksDetailPage(app *app.App) http.HandlerFunc {
 		}
 		app.Render(w, r, "books_detail.tmpl", data, http.StatusOK)
 	}
-
 }
 
 // CreateBookPost handles HTTP POST requests for creating a new book with supplied form data.
 func CreateBookPost(app *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		// Limit the request body to 5MB and parse the multipart form
 		r.Body = http.MaxBytesReader(w, r.Body, 5<<20)
 
@@ -155,7 +167,6 @@ func CreateBookPost(app *app.App) http.HandlerFunc {
 
 		url := fmt.Sprintf("/books/%d", bookId)
 		app.HtmxLocation(w, r, url, "#books-content", "innerHTML")
-
 	}
 }
 
@@ -268,7 +279,6 @@ func UpdateBookPost(app *app.App) http.HandlerFunc {
 				return
 			} else {
 				app.ServerError(w, r, err)
-
 			}
 			return
 		}
@@ -289,7 +299,6 @@ func UpdateBookPost(app *app.App) http.HandlerFunc {
 
 		url := fmt.Sprintf("/books/%d", bookId)
 		app.HtmxLocation(w, r, url, "#books-content", "innerHTML")
-
 	}
 }
 
@@ -369,7 +378,6 @@ func GetBooksCount(app *app.App) http.HandlerFunc {
 // GetRecentBooks returns an HTTP handler function that retrieves and renders the two most recent books from the database.
 func GetRecentBooks(app *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		books, err := app.Models.Books.RetrieveRecentBooks(2)
 		if err != nil {
 			app.ServerError(w, r, err)
@@ -379,7 +387,6 @@ func GetRecentBooks(app *app.App) http.HandlerFunc {
 		data := app.GetTemplateData(r)
 		data.Books = books
 		app.Render(w, r, "htmxRecentBooks", data, http.StatusOK)
-
 	}
 }
 
@@ -387,7 +394,6 @@ func GetRecentBooks(app *app.App) http.HandlerFunc {
 // It writes the book count as a response or a 204 status if the user is not authenticated.
 func GetFinishedBooks(app *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-
 		userId := app.GetAuthenticatedUserId(r)
 		if userId == 0 {
 			w.WriteHeader(http.StatusNoContent)

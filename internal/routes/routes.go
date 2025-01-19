@@ -2,17 +2,17 @@
 package routes
 
 import (
+	"net/http"
+
 	"github.com/justinas/alice"
 	"github.com/madalinpopa/go-bookreview/internal/app"
 	"github.com/madalinpopa/go-bookreview/internal/middleware"
 	"github.com/madalinpopa/go-bookreview/internal/views"
 	"github.com/madalinpopa/go-bookreview/ui"
-	"net/http"
 )
 
 // UrlPatterns sets up and returns an HTTP handler with predefined routing patterns for the given application.
 func UrlPatterns(app *app.App) http.Handler {
-
 	// Create a new HTTP request multiplexer to manage URL-to-handler routing.
 	mux := http.NewServeMux()
 
@@ -51,6 +51,7 @@ func UrlPatterns(app *app.App) http.Handler {
 
 	mux.Handle("GET /books/new", protected.Then(views.BooksAddPage(app)))
 	mux.Handle("POST /books/new", protected.Then(views.CreateBookPost(app)))
+	mux.Handle("GET /books/import", protected.Then(views.BooksImportPage(app)))
 	mux.Handle("GET /books/{id}/edit", protected.Then(views.UpdateBookPage(app)))
 	mux.Handle("POST /books/{id}/edit", protected.Then(views.UpdateBookPost(app)))
 	mux.Handle("POST /books/delete", protected.Then(views.DeleteBookPost(app)))

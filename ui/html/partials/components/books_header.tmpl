@@ -9,6 +9,7 @@
                 <p class="text-sm text-slate-600 mt-1">Browse and manage your reading list</p>
             </div>
             {{if .IsAuthenticated}}
+                <div>
                 <button hx-get="/books/new"
                         hx-target="#books-content"
                         hx-swap="innerHTML"
@@ -19,6 +20,18 @@
                     <iconify-icon icon="heroicons:plus"></iconify-icon>
                     Add Book
                 </button>
+                <button hx-get="/books/import"
+                        hx-target="#books-content"
+                        hx-swap="innerHTML"
+                        hx-push-url="true"
+                        hx-trigger="click, reload-book-form from:body"
+                        hx-boost="true"
+                        class="bg-teal-600 text-white px-4 py-2 rounded-md hover:bg-teal-500 transition-colors inline-flex items-center gap-2">
+                    <iconify-icon icon="heroicons:arrow-up-tray"></iconify-icon>
+                    Import Book  
+                </button>
+                </div>
+
             {{end}}
         </div>
 
