@@ -52,6 +52,7 @@ func UrlPatterns(app *app.App) http.Handler {
 	mux.Handle("GET /books/new", protected.Then(views.BooksAddPage(app)))
 	mux.Handle("POST /books/new", protected.Then(views.CreateBookPost(app)))
 	mux.Handle("GET /books/import", protected.Then(views.BooksImportPage(app)))
+	mux.Handle("POST /books/import", protected.Then(views.BooksImportPagePost(app)))
 	mux.Handle("GET /books/{id}/edit", protected.Then(views.UpdateBookPage(app)))
 	mux.Handle("POST /books/{id}/edit", protected.Then(views.UpdateBookPost(app)))
 	mux.Handle("POST /books/delete", protected.Then(views.DeleteBookPost(app)))

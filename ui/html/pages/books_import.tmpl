@@ -36,13 +36,12 @@
         <!-- Form Container -->
         <div class="bg-white p-8 rounded-lg shadow-sm">
             <div class="mb-8">
-                <h2 class="text-2xl font-bold text-slate-800">Add New Book</h2>
+                <h2 class="text-2xl font-bold text-slate-800">Import Book</h2>
                 <p class="text-sm text-slate-600 mt-1">Import a book from an external source</p>
             </div>
 
             <div id="book-form">
-                <!-- TODO: create a new form -->
-                {{ template "htmxBookForm" .}} 
+                {{ template "htmxBookImportForm" .}} 
             </div>
 
         </div>

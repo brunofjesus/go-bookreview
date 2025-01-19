@@ -3,12 +3,16 @@ package views
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/madalinpopa/go-bookreview/internal/app"
 	"github.com/madalinpopa/go-bookreview/internal/forms"
 	"github.com/madalinpopa/go-bookreview/internal/models"
+	"github.com/madalinpopa/go-bookreview/internal/openlibrary"
 )
 
 // BooksPage handles HTTP requests to display a paginated list of books using the given app's data and templates.
@@ -60,7 +64,7 @@ func BooksAddPage(app *app.App) http.HandlerFunc {
 
 func BooksImportPage(app *app.App) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		var form forms.BookForm // TODO: other form
+		var form forms.BookImportForm
 		data := app.GetTemplateData(r)
 		data.Form = form
 		if app.IsHtmxRequest(r) {
@@ -68,6 +72,98 @@ func BooksImportPage(app *app.App) http.HandlerFunc {
 			return
 		}
 		app.Render(w, r, "books_import.tmpl", data, http.StatusOK)
+	}
+}
+
+func BooksImportPagePost(app *app.App) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Limit the request body to 5MB and parse the multipart form
+		r.Body = http.MaxBytesReader(w, r.Body, 5<<20)
+
+		// Ensure the request body is limited to prevent excessively large uploads
+		if err := r.ParseMultipartForm(5 << 20); err != nil {
+			app.ClientError(w, r, http.StatusBadRequest, err)
+			return
+		}
+		defer func() {
+			if err := r.MultipartForm.RemoveAll(); err != nil {
+				app.Logger.Error(err.Error())
+			}
+		}()
+
+		var form forms.BookImportForm
+		if err := app.FormDecoder.Decode(&form, r.PostForm); err != nil {
+			app.ClientError(w, r, http.StatusBadRequest, err)
+			return
+		}
+		form.Validate()
+		if !form.Valid() {
+			data := app.GetTemplateData(r)
+			data.Form = form
+			app.Logger.Error("form validation failed", "valid", form.Valid())
+			app.Render(w, r, "htmxImportBookForm", data, http.StatusUnprocessableEntity)
+			return
+		}
+
+		userId := app.GetAuthenticatedUserId(r)
+		if userId == 0 {
+			app.ClientError(w, r, http.StatusUnauthorized, errors.New("user not authenticated"))
+			return
+		}
+
+		book, authors, err := openlibrary.FindBookByISBN(r.Context(), app.Logger, form.ISBN)
+		if err != nil {
+			app.Logger.Error("find book failed", "valid", form.Valid())
+			data := app.GetTemplateData(r)
+			data.Form = form
+			app.Render(w, r, "htmxImportBookForm", data, http.StatusInternalServerError)
+			return
+		}
+
+		authorName := ""
+		if len(authors) > 0 {
+			authorNames := make([]string, 0, len(authors))
+			for _, author := range authors {
+				authorNames = append(authorNames, author.Name)
+			}
+			authorName = strings.Join(authorNames, ",")
+		}
+
+		coverUrl := ""
+		if len(book.Covers) > 0 {
+			coverUrl = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", book.Covers[0])
+		}
+
+		year := 0
+		// Regular expression to match a 4-digit year
+		re := regexp.MustCompile(`\b\d{4}\b`)
+
+		// Find the first match
+		if yearString := re.FindString(book.PublishDate); yearString != "" {
+			if year, err = strconv.Atoi(yearString); err != nil {
+				app.Logger.Warn(
+					"cannot get year from publishDate",
+					slog.String("rawPublishDate", book.PublishDate),
+					slog.Any("error", err),
+				)
+			}
+		}
+
+		bookId, err := app.Models.Books.Create(book.Title, authorName, form.ISBN, "want_to_read", coverUrl, year, userId)
+		if err != nil {
+			if errors.Is(err, models.ErrDuplicateIsbn) {
+				form.AddFieldError("isbn", "This ISBN is already registered.")
+				data := app.GetTemplateData(r)
+				data.Form = form
+				app.Render(w, r, "htmxBookForm", data, http.StatusUnprocessableEntity)
+			} else {
+				app.ServerError(w, r, err)
+			}
+			return
+		}
+
+		url := fmt.Sprintf("/books/%d", bookId)
+		app.HtmxLocation(w, r, url, "#books-content", "innerHTML")
 	}
 }
 

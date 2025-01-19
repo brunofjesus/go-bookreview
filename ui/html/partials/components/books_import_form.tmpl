@@ -1,5 +1,6 @@
 {{define "htmxBookImportForm" }}
   <form
+    hx-post="/books/import"
     hx-swap="innerHTML"
     hx-target="#book-form"
     enctype="multipart/form-data"

@@ -3,13 +3,14 @@ package forms
 import (
 	"errors"
 	"fmt"
-	"github.com/madalinpopa/go-bookreview/internal/app"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"time"
+
+	"github.com/madalinpopa/go-bookreview/internal/app"
 )
 
 // UserLoginForm represents the structure for capturing user login data submitted via a form.
@@ -124,6 +125,15 @@ func (cb *BookForm) HandleFileUpload(app *app.App, r *http.Request) error {
 	}
 
 	return nil
+}
+
+type BookImportForm struct {
+	ISBN string `form:"isbn"`
+	Base `form:"-"`
+}
+
+func (bi *BookImportForm) Validate() {
+	bi.CheckField(NotBlank(bi.ISBN), "isbn", "ISBN is required")
 }
 
 // BookReviewForm represents a form structure for submitting a book review with a rating and review text.
