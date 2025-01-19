@@ -4,9 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/mattn/go-sqlite3"
 	"log/slog"
 	"time"
+
+	"github.com/mattn/go-sqlite3"
 )
 
 // PaginatedBooks represents a paginated collection of books with metadata such as total count and pagination details.
@@ -41,7 +42,6 @@ type BookModel struct {
 
 // Create inserts a new book into the database, associates it with a user, and returns the book's ID or an error.
 func (m *BookModel) Create(title, author, isbn, status, imageUrl string, publicationYear, userId int) (int, error) {
-
 	// Start a transaction
 	tx, err := m.DB.Begin()
 	if err != nil {
@@ -139,7 +139,6 @@ func (m *BookModel) Retrieve(id int) (Book, error) {
 
 // Delete removes a book from the database based on the provided book ID and user ID, verifying ownership. Returns an error if unsuccessful.
 func (m *BookModel) Delete(id, userId int) error {
-
 	tx, err := m.DB.Begin()
 	if err != nil {
 		return err
@@ -159,7 +158,6 @@ func (m *BookModel) Delete(id, userId int) error {
         SELECT 1 FROM user_books 
         WHERE book_id = ? AND user_id = ?
     )`, id, userId).Scan(&exists)
-
 	if err != nil {
 		return err
 	}
@@ -244,7 +242,6 @@ func (m *BookModel) Update(id int, title, author, isbn, status, imageUrl string,
 
 // List retrieves a paginated collection of books from the database, including total count and pagination metadata.
 func (m *BookModel) List(page, pageSize int) (PaginatedBooks, error) {
-
 	var total int
 	err := m.DB.QueryRow("SELECT COUNT(*) FROM books").Scan(&total)
 	if err != nil {

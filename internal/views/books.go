@@ -1,13 +1,11 @@
 package views
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
-	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/madalinpopa/go-bookreview/internal/app"
 	"github.com/madalinpopa/go-bookreview/internal/forms"
@@ -111,7 +109,7 @@ func BooksImportPagePost(app *app.App) http.HandlerFunc {
 			return
 		}
 
-		book, authors, err := openlibrary.FindBookByISBN(r.Context(), app.Logger, form.ISBN)
+		book, err := openlibrary.FindBookByISBN(r.Context(), app.Logger, form.ISBN)
 		if err != nil {
 			app.Logger.Error("find book failed", "valid", form.Valid())
 			data := app.GetTemplateData(r)
@@ -120,36 +118,13 @@ func BooksImportPagePost(app *app.App) http.HandlerFunc {
 			return
 		}
 
-		authorName := ""
-		if len(authors) > 0 {
-			authorNames := make([]string, 0, len(authors))
-			for _, author := range authors {
-				authorNames = append(authorNames, author.Name)
-			}
-			authorName = strings.Join(authorNames, ",")
+		coverUrl, err := forms.SaveImage(app, "image/jpeg", form.ISBN, bytes.NewReader(book.CoverImage))
+		if err != nil {
+			app.ServerError(w, r, err)
+			return
 		}
 
-		coverUrl := ""
-		if len(book.Covers) > 0 {
-			coverUrl = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", book.Covers[0])
-		}
-
-		year := 0
-		// Regular expression to match a 4-digit year
-		re := regexp.MustCompile(`\b\d{4}\b`)
-
-		// Find the first match
-		if yearString := re.FindString(book.PublishDate); yearString != "" {
-			if year, err = strconv.Atoi(yearString); err != nil {
-				app.Logger.Warn(
-					"cannot get year from publishDate",
-					slog.String("rawPublishDate", book.PublishDate),
-					slog.Any("error", err),
-				)
-			}
-		}
-
-		bookId, err := app.Models.Books.Create(book.Title, authorName, form.ISBN, "want_to_read", coverUrl, year, userId)
+		bookId, err := app.Models.Books.Create(book.Title, book.Author, form.ISBN, "want_to_read", coverUrl, book.PublicationYear, userId)
 		if err != nil {
 			if errors.Is(err, models.ErrDuplicateIsbn) {
 				form.AddFieldError("isbn", "This ISBN is already registered.")

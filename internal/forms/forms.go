@@ -88,28 +88,12 @@ func (cb *BookForm) HandleFileUpload(app *app.App, r *http.Request) error {
 	}()
 
 	if file != nil && fileHeader != nil {
-		acceptedTypes := []string{"image/jpeg", "image/png"}
 		fileType := fileHeader.Header.Get("Content-Type")
-		if !slices.Contains(acceptedTypes, fileType) {
-			cb.AddNonFieldError("Invalid file type")
-			return ErrInvalidFileType
-		}
-
-		filename := fmt.Sprintf("%d-%s", time.Now().UnixNano(), fileHeader.Filename)
-		imageUrl := fmt.Sprintf("/uploads/%s", filename)
-		fullPath := filepath.Join(app.Config.UploadDir, filename)
-
-		dst, err := os.Create(fullPath)
+		imageUrl, err := SaveImage(app, fileType, fileHeader.Filename, file)
 		if err != nil {
-			return err
-		}
-		defer func() {
-			if err := dst.Close(); err != nil {
-				app.Logger.Error(err.Error())
+			if errors.Is(err, ErrInvalidFileType) {
+				cb.AddNonFieldError("Invalid file type")
 			}
-		}()
-
-		if _, err := io.Copy(dst, file); err != nil {
 			return err
 		}
 
@@ -125,6 +109,33 @@ func (cb *BookForm) HandleFileUpload(app *app.App, r *http.Request) error {
 	}
 
 	return nil
+}
+
+func SaveImage(app *app.App, fileType string, fileName string, content io.Reader) (string, error) {
+	acceptedTypes := []string{"image/jpeg", "image/png"}
+	if !slices.Contains(acceptedTypes, fileType) {
+		return "", ErrInvalidFileType
+	}
+
+	filename := fmt.Sprintf("%d-%s", time.Now().UnixNano(), fileName)
+	imageUrl := fmt.Sprintf("/uploads/%s", filename)
+	fullPath := filepath.Join(app.Config.UploadDir, filename)
+
+	dst, err := os.Create(fullPath)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := dst.Close(); err != nil {
+			app.Logger.Error(err.Error())
+		}
+	}()
+
+	if _, err := io.Copy(dst, content); err != nil {
+		return "", err
+	}
+
+	return imageUrl, nil
 }
 
 type BookImportForm struct {
